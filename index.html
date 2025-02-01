@@ -140,7 +140,7 @@
 
         <div class="controls" id="controls">
             <button id="play-pause">Play</button>
-            <button id="replay">Replay</button>
+            <button id="replay-btn">Replay</button>
         </div>
 
         <div class="error" id="error"></div>
@@ -157,7 +157,7 @@
         const audioPlayer = document.getElementById('audio-player');
         const controls = document.getElementById('controls');
         const playPauseBtn = document.getElementById('play-pause');
-        const replayBtn = document.getElementById('replay-pause');
+        const replayBtn = document.getElementById('replay-btn');
 
         let audioURL = null;
         let wordTimings = [];
@@ -244,27 +244,46 @@
                 // Set up audio playback tracking
                 audioPlayer.addEventListener('timeupdate', updateHighlighting);
                 
-                playPauseBtn.addEventListener('click', () => {
-                    if (audioPlayer.paused) {
+                // Set up click handlers for words
+                const wordElements = document.querySelectorAll('.word');
+                wordElements.forEach(word => {
+                    word.addEventListener('click', () => {
+                        const start = parseFloat(word.dataset.start);
+                        audioPlayer.currentTime = start;
                         audioPlayer.play();
                         playPauseBtn.textContent = 'Pause';
-                    } else {
-                        audioPlayer.pause();
-                        playPauseBtn.textContent = 'Play';
-                    }
+                    });
                 });
 
-                replayBtn.addEventListener('click', () => {
-                    audioPlayer.currentTime = 0;
-                    audioPlayer.play();
-                    playPauseBtn.textContent = 'Pause';
-                });
+                // Remove any existing event listeners
+                playPauseBtn.removeEventListener('click', handlePlayPause);
+                replayBtn.removeEventListener('click', handleReplay);
+
+                // Add new event listeners
+                playPauseBtn.addEventListener('click', handlePlayPause);
+                replayBtn.addEventListener('click', handleReplay);
 
             } catch (err) {
                 showError(err.message);
             } finally {
                 loading.style.display = 'none';
             }
+        }
+
+        function handlePlayPause() {
+            if (audioPlayer.paused) {
+                audioPlayer.play();
+                playPauseBtn.textContent = 'Pause';
+            } else {
+                audioPlayer.pause();
+                playPauseBtn.textContent = 'Play';
+            }
+        }
+
+        function handleReplay() {
+            audioPlayer.currentTime = 0;
+            audioPlayer.play();
+            playPauseBtn.textContent = 'Pause';
         }
 
         function updateHighlighting() {
