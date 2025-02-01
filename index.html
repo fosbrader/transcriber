@@ -24,11 +24,21 @@
             padding: 1rem;
             background-color: #f8f9fa;
             border-radius: 5px;
-            display: none;
             line-height: 1.6;
             max-height: 400px;
             overflow-y: auto;
             border: 1px solid #dee2e6;
+            min-height: 50px;
+            width: 100%;
+            box-sizing: border-box;
+            opacity: 1;
+            visibility: visible;
+        }
+        .result:empty {
+            display: none;
+        }
+        .result:not(:empty) {
+            display: block !important;
         }
         .dropzone { 
             border: 2px dashed #ccc; 
@@ -237,18 +247,27 @@
                 const data = await response.json();
                 console.log('Received response:', data);
                 
-                // Process word timings
-                wordTimings = data.words || [];
-                console.log('Word timings:', wordTimings);
-                
-                // Create word spans with timing data
-                const words = wordTimings.map((word, index) => {
-                    return `<span class="word" data-start="${word.start}" data-end="${word.end}">${word.word}</span>`;
-                }).join(' ');
+                // Process word timings and text
+                if (!data.words || data.words.length === 0) {
+                    // If no word timings, just display the text
+                    result.innerHTML = `<span class="word">${data.text}</span>`;
+                } else {
+                    // Process word timings
+                    wordTimings = data.words;
+                    console.log('Word timings:', wordTimings);
+                    
+                    // Create word spans with timing data
+                    const words = wordTimings.map((word, index) => {
+                        return `<span class="word" data-start="${word.start}" data-end="${word.end}">${word.word}</span>`;
+                    }).join(' ');
 
-                result.innerHTML = words;
+                    result.innerHTML = words;
+                }
+                
+                // Make sure the result div is visible
                 result.style.display = 'block';
-                console.log('Transcript displayed');
+                result.style.visibility = 'visible';
+                console.log('Transcript displayed:', result.innerHTML);
 
                 // Set up audio playback tracking
                 audioPlayer.addEventListener('timeupdate', updateHighlighting);
