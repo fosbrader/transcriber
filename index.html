@@ -26,6 +26,9 @@
             border-radius: 5px;
             display: none;
             line-height: 1.6;
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #dee2e6;
         }
         .dropzone { 
             border: 2px dashed #ccc; 
@@ -81,9 +84,11 @@
         }
         .word {
             display: inline-block;
-            padding: 0 2px;
+            padding: 2px 4px;
+            margin: 0 2px;
             border-radius: 3px;
             cursor: pointer;
+            transition: background-color 0.2s ease;
         }
         .word:hover {
             background-color: #e9ecef;
@@ -216,6 +221,7 @@
                 formData.append('response_format', 'verbose_json');
                 formData.append('timestamp_granularities', ['word']);
 
+                console.log('Sending request to OpenAI API...');
                 const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
                     method: 'POST',
                     headers: {
@@ -229,9 +235,11 @@
                 }
 
                 const data = await response.json();
+                console.log('Received response:', data);
                 
                 // Process word timings
                 wordTimings = data.words || [];
+                console.log('Word timings:', wordTimings);
                 
                 // Create word spans with timing data
                 const words = wordTimings.map((word, index) => {
@@ -240,6 +248,7 @@
 
                 result.innerHTML = words;
                 result.style.display = 'block';
+                console.log('Transcript displayed');
 
                 // Set up audio playback tracking
                 audioPlayer.addEventListener('timeupdate', updateHighlighting);
