@@ -25,6 +25,7 @@
             background-color: #f8f9fa;
             border-radius: 5px;
             display: none;
+            line-height: 1.6;
         }
         .dropzone { 
             border: 2px dashed #ccc; 
@@ -73,6 +74,44 @@
             margin-top: 1rem;
             display: none;
         }
+        .audio-player {
+            width: 100%;
+            margin: 1rem 0;
+            display: none;
+        }
+        .word {
+            display: inline-block;
+            padding: 0 2px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .word:hover {
+            background-color: #e9ecef;
+        }
+        .word.active {
+            background-color: #ffd700;
+            transition: background-color 0.2s ease;
+        }
+        .controls {
+            margin: 1rem 0;
+            display: none;
+        }
+        .controls button {
+            padding: 0.5rem 1rem;
+            margin: 0 0.5rem;
+            border: none;
+            border-radius: 4px;
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+        }
+        .controls button:hover {
+            background-color: #0056b3;
+        }
+        .controls button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body>
@@ -95,6 +134,15 @@
             Transcribing...
         </div>
 
+        <audio id="audio-player" class="audio-player" controls>
+            Your browser does not support the audio element.
+        </audio>
+
+        <div class="controls" id="controls">
+            <button id="play-pause">Play</button>
+            <button id="replay">Replay</button>
+        </div>
+
         <div class="error" id="error"></div>
         <div class="result" id="result"></div>
     </div>
@@ -106,6 +154,13 @@
         const result = document.getElementById('result');
         const error = document.getElementById('error');
         const apiKeyInput = document.getElementById('api-key');
+        const audioPlayer = document.getElementById('audio-player');
+        const controls = document.getElementById('controls');
+        const playPauseBtn = document.getElementById('play-pause');
+        const replayBtn = document.getElementById('replay-pause');
+
+        let audioURL = null;
+        let wordTimings = [];
 
         // Drag and drop handlers
         dropzone.addEventListener('dragover', (e) => {
@@ -142,11 +197,24 @@
             loading.style.display = 'block';
             result.style.display = 'none';
             error.style.display = 'none';
+            audioPlayer.style.display = 'none';
+            controls.style.display = 'none';
 
             try {
+                // Set up audio playback
+                if (audioURL) {
+                    URL.revokeObjectURL(audioURL);
+                }
+                audioURL = URL.createObjectURL(file);
+                audioPlayer.src = audioURL;
+                audioPlayer.style.display = 'block';
+                controls.style.display = 'block';
+
                 const formData = new FormData();
                 formData.append('file', file);
                 formData.append('model', 'whisper-1');
+                formData.append('response_format', 'verbose_json');
+                formData.append('timestamp_granularities', ['word']);
 
                 const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
                     method: 'POST',
@@ -161,8 +229,37 @@
                 }
 
                 const data = await response.json();
-                result.textContent = data.text;
+                
+                // Process word timings
+                wordTimings = data.words || [];
+                
+                // Create word spans with timing data
+                const words = wordTimings.map((word, index) => {
+                    return `<span class="word" data-start="${word.start}" data-end="${word.end}">${word.word}</span>`;
+                }).join(' ');
+
+                result.innerHTML = words;
                 result.style.display = 'block';
+
+                // Set up audio playback tracking
+                audioPlayer.addEventListener('timeupdate', updateHighlighting);
+                
+                playPauseBtn.addEventListener('click', () => {
+                    if (audioPlayer.paused) {
+                        audioPlayer.play();
+                        playPauseBtn.textContent = 'Pause';
+                    } else {
+                        audioPlayer.pause();
+                        playPauseBtn.textContent = 'Play';
+                    }
+                });
+
+                replayBtn.addEventListener('click', () => {
+                    audioPlayer.currentTime = 0;
+                    audioPlayer.play();
+                    playPauseBtn.textContent = 'Pause';
+                });
+
             } catch (err) {
                 showError(err.message);
             } finally {
@@ -170,11 +267,40 @@
             }
         }
 
+        function updateHighlighting() {
+            const currentTime = audioPlayer.currentTime;
+            const words = document.querySelectorAll('.word');
+            
+            words.forEach(word => {
+                const start = parseFloat(word.dataset.start);
+                const end = parseFloat(word.dataset.end);
+                
+                if (currentTime >= start && currentTime <= end) {
+                    word.classList.add('active');
+                    // Scroll word into view if needed
+                    const rect = word.getBoundingClientRect();
+                    const containerRect = result.getBoundingClientRect();
+                    if (rect.top < containerRect.top || rect.bottom > containerRect.bottom) {
+                        word.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                } else {
+                    word.classList.remove('active');
+                }
+            });
+        }
+
         function showError(message) {
             error.textContent = message;
             error.style.display = 'block';
             loading.style.display = 'none';
         }
+
+        // Clean up on page unload
+        window.addEventListener('beforeunload', () => {
+            if (audioURL) {
+                URL.revokeObjectURL(audioURL);
+            }
+        });
     </script>
 </body>
 </html> 
